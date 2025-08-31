@@ -328,11 +328,26 @@ const transformMessages = async (messages) => {
   return { system_instruction, contents };
 };
 
-const transformRequest = async (req) => ({
-  ...await transformMessages(req.messages),
-  safetySettings,
-  generationConfig: transformConfig(req),
-});
+// 这是【新的】代码，请用它替换掉旧的函数
+const transformRequest = async (req) => {
+  // 1. 先构建基础的请求体，和原来一样
+  const geminiRequestBody = {
+    ...await transformMessages(req.messages),
+    safetySettings,
+    generationConfig: transformConfig(req),
+  };
+
+  // 2. 【核心修改】检查OpenAI请求中是否包含tools参数
+  // 如果有，就说明用户希望使用工具（联网搜索），我们就在Gemini请求体中加入对应的参数
+  if (req.tools && Array.isArray(req.tools) && req.tools.length > 0) {
+    geminiRequestBody.tools = [{
+      "google_search_retrieval": {}
+    }];
+  }
+
+  // 3. 返回最终构建好的、可能包含联网指令的请求体
+  return geminiRequestBody;
+};
 
 const generateChatcmplId = () => {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
